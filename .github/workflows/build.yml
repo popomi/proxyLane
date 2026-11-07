@@ -41,16 +41,16 @@ jobs:
           if (-not $msbuild) { throw "MSBuild.exe not found via vswhere" }
           Write-Host "Using MSBuild: $msbuild"
 
-          & $msbuild .\src\ProxyLaneHook\ProxyLaneHook.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          & $msbuild .\src\ProxyLane.sln /t:ProxyLaneHook /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          & $msbuild .\src\ProxyLaneHook\ProxyLaneHook.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          & $msbuild .\src\ProxyLane.sln /t:ProxyLaneHook /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          & $msbuild .\src\ProxyLane\ProxyLane.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          & $msbuild .\src\ProxyLane.sln /t:ProxyLane /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          & $msbuild .\src\ProxyLane\ProxyLane.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          & $msbuild .\src\ProxyLane.sln /t:ProxyLane /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build and run unit tests (Win32 and x64 Release)
