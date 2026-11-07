@@ -1,4 +1,4 @@
-﻿// ProxyLane.cpp : 定义应用程序的类行为。
+// ProxyLane.cpp : 定义应用程序的类行为。
 //
 
 #include "stdafx.h"
@@ -11,6 +11,7 @@
 #include "Localization.h"
 #include "AppVersion.h"
 #include "AppLauncher.h"
+#include "StartupSettings.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -263,7 +264,7 @@ BOOL CProxyLaneApp::InitInstance()
 		ShExecInfo.lpFile = strPath64;
 		ShExecInfo.lpParameters = forwardedArguments;
 		ShExecInfo.lpDirectory = NULL;
-		ShExecInfo.nShow = m_automationOptions.enabled ? SW_HIDE : SW_SHOW;
+		ShExecInfo.nShow = (m_automationOptions.enabled || m_automationOptions.silentStartup) ? SW_HIDE : SW_SHOW;
 		ShExecInfo.hInstApp = NULL;
 		if (ShellExecuteEx(&ShExecInfo))
 		{
@@ -311,6 +312,22 @@ BOOL CProxyLaneApp::InitInstance()
 		return FALSE;
 	}
 #endif
+
+	if (m_automationOptions.registerStartup)
+	{
+		StartupSettings::SetSilentStartEnabled(true);
+		if (!m_automationOptions.profileName.IsEmpty())
+			StartupSettings::SetDefaultProfile(m_automationOptions.profileName);
+		StartupSettings::SetAutoStartEnabled(true);
+		m_automationExitCode = AUTOMATION_EXIT_SUCCESS;
+		return FALSE;
+	}
+	if (m_automationOptions.unregisterStartup)
+	{
+		StartupSettings::SetAutoStartEnabled(false);
+		m_automationExitCode = AUTOMATION_EXIT_SUCCESS;
+		return FALSE;
+	}
 
 	if (!PrepareAutomationCommandReceiver())
 		return FALSE;

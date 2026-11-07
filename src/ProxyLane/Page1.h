@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "..\ProxyLaneHook\ProxyModule.h"
 #include "..\ProxyLaneHook\ProxyDataHandle.h"
@@ -184,6 +184,7 @@ public:
 	afx_msg void OnCfgoptSave();
 	afx_msg void OnCfgoptDelete();
 	afx_msg void OnProfileMenu();
+	afx_msg void OnToggleDefaultProfile();
 	afx_msg void OnImportAllConfig();
  void ImportConfigFile(const CString& path);
 	BOOL CanImportAllConfig();

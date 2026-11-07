@@ -10,12 +10,20 @@
 #include "ExitCleanupDialog.h"
 #include "ProcessActions.h"
 #include "ApplicationCatalogCache.h"
+#include "StartupSettings.h"
 #include <afxole.h>
 #include <propkey.h>
 #include <propsys.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
+#endif
+
+#ifndef NIN_SELECT
+#define NIN_SELECT (WM_USER + 0)
+#endif
+#ifndef NIN_KEYSELECT
+#define NIN_KEYSELECT (NIN_SELECT | 1)
 #endif
 
 #define _MUTEX _T("{BAD09968-F0A9-4818-AD34-B39DFDA840FE}")
@@ -75,9 +83,15 @@ namespace
 	enum TaskbarMenuCommand
 	{
 		TASKBAR_MENU_OPEN = 1,
+		TASKBAR_MENU_HIDE,
 		TASKBAR_MENU_STOP_PROXY,
+		TASKBAR_MENU_TOGGLE_AUTOSTART,
+		TASKBAR_MENU_TOGGLE_SILENT,
+		TASKBAR_MENU_TOGGLE_CLOSE_TRAY,
+		TASKBAR_MENU_DEFAULT_NONE,
 		TASKBAR_MENU_EXIT,
-		TASKBAR_MENU_PROFILE_FIRST = 1000
+		TASKBAR_MENU_PROFILE_FIRST = 1000,
+		TASKBAR_MENU_DEFAULT_FIRST = 2000
 	};
 
 	HICON CreateGrayscaleIcon(HICON sourceIcon)
@@ -578,6 +592,7 @@ BEGIN_MESSAGE_MAP(CProxyLaneDlg, CModernDialog)
 	ON_MESSAGE(WM_PROFILE_COMMAND_REQUEST, OnProfileCommandRequest)
 	ON_MESSAGE(WM_CONFIG_IMPORT_RESTART, OnConfigImportRestart)
 	ON_MESSAGE(WM_DEFERRED_FILE_DRAG_LEAVE, OnDeferredFileDragLeave)
+	ON_MESSAGE(WM_HOTKEY, OnHotKey)
 	//}}AFX_MSG_MAP
 	ON_WM_DESTROY()
 	ON_WM_SIZE()
@@ -588,6 +603,13 @@ END_MESSAGE_MAP()
 
 // CProxyLaneDlg 消息处理程序
 
+LRESULT CProxyLaneDlg::OnHotKey(WPARAM wParam, LPARAM)
+{
+	if (wParam == 0x7F01)
+		ShowAndActivate();
+	return 0;
+}
+
 LRESULT CProxyLaneDlg::OnPreloadApplications(WPARAM, LPARAM)
 {
 	PreloadApplicationCatalog();
@@ -597,7 +619,9 @@ LRESULT CProxyLaneDlg::OnPreloadApplications(WPARAM, LPARAM)
 
 BOOL CProxyLaneDlg::OnInitDialog()
 {
-	m_stayInTray = theApp.GetAutomationOptions().enabled;
+	StartupSettings::SyncRegistryOnStartup();
+	const AutomationOptions& autoOpts = theApp.GetAutomationOptions();
+	m_stayInTray = autoOpts.enabled || autoOpts.silentStartup || StartupSettings::IsSilentStartEnabled();
 	CModernDialog::OnInitDialog();
 	// Do not expose a half-initialized child-dialog tree. On a busy machine
 	// Windows can otherwise compose individual controls before page creation,
@@ -684,6 +708,7 @@ BOOL CProxyLaneDlg::OnInitDialog()
 	s_uTaskbarRestart = RegisterWindowMessage(TEXT("TaskbarCreated"));
 
 	AddTaskbarIcons();
+	::RegisterHotKey(m_hWnd, 0x7F01, MOD_CONTROL | MOD_ALT, 'P');
 	m_MainTab.FinalizeLayout(FALSE);
 	// The dialog is hidden while its child pages are initialized, so explicitly
 	// apply the normal dialog centering before its first visible frame.
@@ -697,12 +722,37 @@ BOOL CProxyLaneDlg::OnInitDialog()
 	}
 	else
 	{
-		ShowWindow(SW_SHOW);
-		RedrawWindow(NULL, NULL,
-			RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
-		PostMessage(WM_PRELOAD_APPLICATIONS);
-		// Also acknowledge a normal GUI restart after a complete INI import.
-		theApp.SignalAutomationReady();
+		CString startupProfile = autoOpts.profileName;
+		if (startupProfile.IsEmpty())
+			startupProfile = StartupSettings::GetDefaultProfile();
+		if (!startupProfile.IsEmpty())
+		{
+			CPage1* page1 = m_MainTab.GetPage1();
+			if (page1 && page1->LoadProfileByName(startupProfile, TRUE))
+			{
+				if (page1->StartProxy(FALSE))
+				{
+					RefreshProfileCommandServer();
+					UpdateTaskbarIcon();
+				}
+			}
+		}
+
+		if (m_stayInTray)
+		{
+			ShowWindow(SW_HIDE);
+			PostMessage(WM_PRELOAD_APPLICATIONS);
+			theApp.SignalAutomationReady();
+		}
+		else
+		{
+			ShowWindow(SW_SHOW);
+			RedrawWindow(NULL, NULL,
+				RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+			PostMessage(WM_PRELOAD_APPLICATIONS);
+			// Also acknowledge a normal GUI restart after a complete INI import.
+			theApp.SignalAutomationReady();
+		}
 	}
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -954,10 +1004,20 @@ LRESULT CProxyLaneDlg::OnProfileCommandRequest(WPARAM, LPARAM lParam)
 
 void CProxyLaneDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
-	switch (nID)
+	switch (nID & 0xFFF0)
 	{
 	case SC_MINIMIZE:
+		m_stayInTray = TRUE;
 		ShowWindow(SW_HIDE);
+		break;
+	case SC_CLOSE:
+		if (StartupSettings::IsCloseToTrayEnabled())
+		{
+			m_stayInTray = TRUE;
+			ShowWindow(SW_HIDE);
+			return;
+		}
+		CModernDialog::OnSysCommand(nID, lParam);
 		break;
 	default:
 		CModernDialog::OnSysCommand(nID, lParam);
@@ -999,6 +1059,7 @@ HCURSOR CProxyLaneDlg::OnQueryDragIcon()
 
 void CProxyLaneDlg::OnDestroy()
 {
+	::UnregisterHotKey(m_hWnd, 0x7F01);
 	SetTaskbarIdentity(m_hWnd, true);
 	EndFileDrag();
 	for (size_t index = 0; index < m_fileDropTargets.size(); ++index)
@@ -1086,10 +1147,14 @@ CProxyLaneDlg::OnShellIconNotify(
 				ShowNextTrayNotification();
 			}
 			break;
+		case WM_LBUTTONUP:
 		case WM_LBUTTONDBLCLK:
+		case NIN_SELECT:
+		case NIN_KEYSELECT:
 			ShowAndActivate();
 			break;
 		case WM_RBUTTONUP:
+		case WM_CONTEXTMENU:
 			ShowTaskbarMenu();
 			break;
 		default:
@@ -1190,46 +1255,100 @@ void CProxyLaneDlg::ShowTaskbarMenu()
 
 	menu.AppendMenu(MF_STRING, TASKBAR_MENU_OPEN,
 		Localization::Get(_T("tray.open")));
+	::SetMenuDefaultItem(menu.GetSafeHmenu(), TASKBAR_MENU_OPEN, FALSE);
+	if (IsWindowVisible())
+	{
+		menu.AppendMenu(MF_STRING, TASKBAR_MENU_HIDE,
+			Localization::Get(_T("tray.hide")));
+	}
 	menu.AppendMenu(MF_SEPARATOR);
 
 	CPage1* page1 = m_MainTab.GetPage1();
 	std::vector<CString> profiles;
-	if (m_MainTab.IsProxyRunning())
+	if (page1)
+		page1->GetSavedProfileNames(profiles);
+
+	const CString defaultProfile = StartupSettings::GetDefaultProfile();
+	const BOOL isRunning = m_MainTab.IsProxyRunning();
+	const CString runningProfile = m_MainTab.GetRunningProfileName();
+
+	if (isRunning)
 	{
 		CString runningText = Localization::Format(_T("tray.running_profile"),
-			static_cast<LPCTSTR>(m_MainTab.GetRunningProfileName()));
+			static_cast<LPCTSTR>(runningProfile));
 		menu.AppendMenu(MF_STRING | MF_DISABLED | MF_GRAYED, 0, runningText);
 		menu.AppendMenu(MF_STRING, TASKBAR_MENU_STOP_PROXY,
 			Localization::Get(_T("action.stop_proxy")));
 	}
-	else
+
+	CMenu profileMenu;
+	if (profileMenu.CreatePopupMenu())
 	{
-		CMenu profileMenu;
-		if (profileMenu.CreatePopupMenu())
+		if (profiles.empty())
 		{
-			if (page1)
-				page1->GetSavedProfileNames(profiles);
-
-			if (profiles.empty())
-			{
-				profileMenu.AppendMenu(MF_STRING | MF_DISABLED | MF_GRAYED, 0,
-					Localization::Get(_T("tray.no_profiles")));
-			}
-			else
-			{
-				for (size_t index = 0; index < profiles.size(); ++index)
-				{
-					profileMenu.AppendMenu(MF_STRING,
-						TASKBAR_MENU_PROFILE_FIRST + static_cast<UINT>(index),
-						EscapeMenuText(profiles[index]));
-				}
-			}
-
-			menu.AppendMenu(MF_POPUP,
-				reinterpret_cast<UINT_PTR>(profileMenu.Detach()),
-				Localization::Get(_T("action.start_proxy")));
+			profileMenu.AppendMenu(MF_STRING | MF_DISABLED | MF_GRAYED, 0,
+				Localization::Get(_T("tray.no_profiles")));
 		}
+		else
+		{
+			for (size_t index = 0; index < profiles.size(); ++index)
+			{
+				CString itemLabel = EscapeMenuText(profiles[index]);
+				if (!defaultProfile.IsEmpty() && defaultProfile.CompareNoCase(profiles[index]) == 0)
+					itemLabel += Localization::Get(_T("tray.default_suffix"));
+				UINT itemFlags = MF_STRING;
+				if (isRunning && runningProfile.CompareNoCase(profiles[index]) == 0)
+					itemFlags |= MF_CHECKED;
+				profileMenu.AppendMenu(itemFlags,
+					TASKBAR_MENU_PROFILE_FIRST + static_cast<UINT>(index),
+					itemLabel);
+			}
+		}
+
+		menu.AppendMenu(MF_POPUP,
+			reinterpret_cast<UINT_PTR>(profileMenu.Detach()),
+			Localization::Get(isRunning ? _T("tray.switch_profile") : _T("action.start_proxy")));
 	}
+
+	CMenu defaultMenu;
+	if (defaultMenu.CreatePopupMenu())
+	{
+		defaultMenu.AppendMenu(
+			MF_STRING | (defaultProfile.IsEmpty() ? MF_CHECKED : 0),
+			TASKBAR_MENU_DEFAULT_NONE,
+			Localization::Get(_T("settings.default_profile_none")));
+		if (!profiles.empty())
+		{
+			defaultMenu.AppendMenu(MF_SEPARATOR);
+			for (size_t index = 0; index < profiles.size(); ++index)
+			{
+				UINT itemFlags = MF_STRING;
+				if (!defaultProfile.IsEmpty() && defaultProfile.CompareNoCase(profiles[index]) == 0)
+					itemFlags |= MF_CHECKED;
+				defaultMenu.AppendMenu(
+					itemFlags,
+					TASKBAR_MENU_DEFAULT_FIRST + static_cast<UINT>(index),
+					EscapeMenuText(profiles[index]));
+			}
+		}
+		menu.AppendMenu(MF_POPUP,
+			reinterpret_cast<UINT_PTR>(defaultMenu.Detach()),
+			Localization::Get(_T("tray.default_profile")));
+	}
+
+	menu.AppendMenu(MF_SEPARATOR);
+	menu.AppendMenu(
+		MF_STRING | (StartupSettings::IsAutoStartEnabled() ? MF_CHECKED : 0),
+		TASKBAR_MENU_TOGGLE_AUTOSTART,
+		Localization::Get(_T("settings.auto_start")));
+	menu.AppendMenu(
+		MF_STRING | (StartupSettings::IsSilentStartEnabled() ? MF_CHECKED : 0),
+		TASKBAR_MENU_TOGGLE_SILENT,
+		Localization::Get(_T("settings.silent_start")));
+	menu.AppendMenu(
+		MF_STRING | (StartupSettings::IsCloseToTrayEnabled() ? MF_CHECKED : 0),
+		TASKBAR_MENU_TOGGLE_CLOSE_TRAY,
+		Localization::Get(_T("settings.close_to_tray")));
 
 	menu.AppendMenu(MF_SEPARATOR);
 	menu.AppendMenu(MF_STRING, TASKBAR_MENU_EXIT,
@@ -1247,10 +1366,46 @@ void CProxyLaneDlg::ShowTaskbarMenu()
 	{
 		ShowAndActivate();
 	}
+	else if (command == TASKBAR_MENU_HIDE)
+	{
+		m_stayInTray = TRUE;
+		ShowWindow(SW_HIDE);
+	}
 	else if (command == TASKBAR_MENU_STOP_PROXY)
 	{
 		if (page1 && !page1->StopProxy())
 			ShowAndActivate();
+	}
+	else if (command == TASKBAR_MENU_TOGGLE_AUTOSTART)
+	{
+		StartupSettings::SetAutoStartEnabled(!StartupSettings::IsAutoStartEnabled());
+		if (m_MainTab.GetPage5()->GetSafeHwnd())
+			m_MainTab.GetPage5()->RefreshStartupPreferences();
+	}
+	else if (command == TASKBAR_MENU_TOGGLE_SILENT)
+	{
+		StartupSettings::SetSilentStartEnabled(!StartupSettings::IsSilentStartEnabled());
+		if (m_MainTab.GetPage5()->GetSafeHwnd())
+			m_MainTab.GetPage5()->RefreshStartupPreferences();
+	}
+	else if (command == TASKBAR_MENU_TOGGLE_CLOSE_TRAY)
+	{
+		StartupSettings::SetCloseToTrayEnabled(!StartupSettings::IsCloseToTrayEnabled());
+		if (m_MainTab.GetPage5()->GetSafeHwnd())
+			m_MainTab.GetPage5()->RefreshStartupPreferences();
+	}
+	else if (command == TASKBAR_MENU_DEFAULT_NONE)
+	{
+		StartupSettings::SetDefaultProfile(L"");
+		if (m_MainTab.GetPage5()->GetSafeHwnd())
+			m_MainTab.GetPage5()->RefreshStartupPreferences();
+	}
+	else if (command >= TASKBAR_MENU_DEFAULT_FIRST &&
+		command < TASKBAR_MENU_DEFAULT_FIRST + profiles.size())
+	{
+		StartupSettings::SetDefaultProfile(profiles[command - TASKBAR_MENU_DEFAULT_FIRST]);
+		if (m_MainTab.GetPage5()->GetSafeHwnd())
+			m_MainTab.GetPage5()->RefreshStartupPreferences();
 	}
 	else if (command == TASKBAR_MENU_EXIT)
 	{
@@ -1271,6 +1426,17 @@ void CProxyLaneDlg::StartProxyFromTaskbarProfile(LPCTSTR profileName)
 	CPage1* page1 = m_MainTab.GetPage1();
 	if (!page1)
 		return;
+
+	if (m_MainTab.IsProxyRunning())
+	{
+		if (m_MainTab.GetRunningProfileName().CompareNoCase(profileName) == 0)
+			return;
+		if (!page1->StopProxy())
+		{
+			ShowAndActivate();
+			return;
+		}
+	}
 
 	if (page1->HasUnsavedProfileChanges())
 	{

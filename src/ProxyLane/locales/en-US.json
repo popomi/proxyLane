@@ -385,7 +385,7 @@
   "dialog.drop_launch_failed": "The dropped application could not start. Check the file and its permissions.",
   "dialog.drop_failed_title": "Cannot Start Through Proxy",
   "automation.command_line_help_title": "ProxyLane Command-Line Help",
-  "automation.command_line_help": "Usage\r\n\r\nStart an application through the transparent proxy:\r\nProxyLane.exe --auto --profile <profile name> --run <application path> [-- <application arguments...>]\r\n\r\nShow this help:\r\nProxyLane.exe /?\r\n\r\nOptions\r\n--auto       Use command-line automation mode.\r\n--profile    Select a saved profile.\r\n--run        Select the application to start through the proxy.\r\n--           Pass all remaining arguments to the application.\r\n/?, -?, --help    Show this help.\r\n\r\nExample\r\nProxyLane.exe --auto --profile \"Test\" --run \"C:\\Tools\\app.exe\" -- -arg value\r\n\r\nAn existing instance with the same installation, user session, and profile is reused.\r\n\r\nShortcut options\r\n--arguments    Preserve the raw application argument string.\r\n--working-directory    Application working directory.\r\n--elevated    Launch the application as administrator.\r\n--packaged    Interpret --run as a packaged app AUMID.\r\n--shortcut    Run in the tray and notify launch results.\r\n--app-name    Application display name for notifications.",
+  "automation.command_line_help": "Usage\r\n\r\nStart an application through the transparent proxy:\r\nProxyLane.exe --auto --profile <profile name> --run <application path> [-- <application arguments...>]\r\n\r\nStart silently in the background (system tray):\r\nProxyLane.exe --silent [--profile <default profile name>]\r\n\r\nRegister / unregister silent startup at Windows logon:\r\nProxyLane.exe --register-startup [--profile <default profile name>]\r\nProxyLane.exe --unregister-startup\r\n\r\nShow this help:\r\nProxyLane.exe /?\r\n\r\nOptions\r\n--auto       Use command-line automation mode.\r\n--profile    Select a saved profile.\r\n--run        Select the application to start through the proxy.\r\n--silent, --tray, --startup    Start silently in the system tray.\r\n--register-startup      Register silent auto-start at Windows logon.\r\n--unregister-startup    Remove auto-start registration.\r\n--           Pass all remaining arguments to the application.\r\n/?, -?, --help    Show this help.\r\n\r\nExample\r\nProxyLane.exe --auto --profile \"Test\" --run \"C:\\Tools\\app.exe\" -- -arg value\r\n\r\nAn existing instance with the same installation, user session, and profile is reused.\r\n\r\nShortcut options\r\n--arguments    Preserve the raw application argument string.\r\n--working-directory    Application working directory.\r\n--elevated    Launch the application as administrator.\r\n--packaged    Interpret --run as a packaged app AUMID.\r\n--shortcut    Run in the tray and notify launch results.\r\n--app-name    Application display name for notifications.",
   "mitm.ca": "Decryption options",
   "mitm.legacy_unavailable": "MITM and protocol monitoring are unavailable on Windows XP / Server 2003. Proxy features remain available.",
   "mitm.enable": "Decrypt HTTPS",
@@ -590,5 +590,17 @@
   "shortcut.profile_conflict": "The shortcut uses profile \"%s\"; the running profile is \"%s\".\r\n\r\nYes: use the shortcut profile.\r\nNo: use the current profile.\r\nCancel: do not launch.",
   "shortcut.started_notification": "Started %s\r\nProfile: %s",
   "shortcut.started_log": "Shortcut launched application: %s; profile: %s.\r\n",
-  "shortcut.notification_failed": "The application started, but the tray notification could not be sent.\r\n"
+  "shortcut.notification_failed": "The application started, but the tray notification could not be sent.\r\n",
+  "settings.default_profile": "Default startup profile (optional)",
+  "settings.default_profile_none": "None (do not auto-enable)",
+  "settings.auto_start": "Launch at Windows startup",
+  "settings.silent_start": "Start silently in background (system tray)",
+  "settings.close_to_tray": "Hide to system tray when closing window",
+  "tray.hide": "Hide to system tray",
+  "tray.default_profile": "Default startup profile",
+  "tray.default_suffix": " (Default)",
+  "tray.switch_profile": "Switch Profile",
+  "profile.set_default": "Set as default startup profile",
+  "profile.default_set": "Default startup profile set: %s",
+  "profile.default_cleared": "Default startup profile cleared"
 }

@@ -93,6 +93,7 @@ public:
 	afx_msg void OnWindowPosChanging(WINDOWPOS* position);
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* minMaxInfo);
 	afx_msg void OnDropFiles(HDROP dropInfo);
+	afx_msg LRESULT OnHotKey(WPARAM wParam, LPARAM lParam);
 };
 
 

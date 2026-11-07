@@ -8,6 +8,7 @@
 #include "MainTab.h"
 #include "Page1.h"
 #include "UpdateRelease.h"
+#include "StartupSettings.h"
 #include <wininet.h>
 #pragma comment(lib, "wininet.lib")
 
@@ -96,6 +97,19 @@ BOOL CPage5::OnInitDialog()
  for (UINT id : { 0x2521, 0x2522, 0x2526, 0x2527 }) GetDlgItem(id)->SetFont(id == 0x2522 || id == 0x2527 ? &m_smallFont : &m_uiFont);
  if (m_projectTooltip.GetSafeHwnd()) m_projectTooltip.AddTool(&m_storagePath, ConfigStorage::Path());
  m_storagePath.ModifyStyle(0, SS_NOTIFY);
+
+ m_defaultProfileLabel.Create(Localization::Get(L"settings.default_profile"), child | SS_NOPREFIX, CRect(), this, 0x253F);
+ m_defaultProfileLabel.SetFont(&m_uiFont);
+ m_defaultProfileCombo.Create(child | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST, CRect(), this, 0x2540);
+ m_defaultProfileCombo.SetFont(&m_uiFont);
+ m_autoStartToggle.Create(Localization::Get(L"settings.auto_start"), child | WS_TABSTOP | BS_AUTOCHECKBOX, CRect(), this, 0x2541);
+ m_autoStartToggle.SetFont(&m_uiFont);
+ m_silentStartToggle.Create(Localization::Get(L"settings.silent_start"), child | WS_TABSTOP | BS_AUTOCHECKBOX, CRect(), this, 0x2542);
+ m_silentStartToggle.SetFont(&m_uiFont);
+ m_closeToTrayToggle.Create(Localization::Get(L"settings.close_to_tray"), child | WS_TABSTOP | BS_AUTOCHECKBOX, CRect(), this, 0x2543);
+ m_closeToTrayToggle.SetFont(&m_uiFont);
+ RefreshStartupPreferences();
+
  // Frames paint below their sibling controls and never enter the tab order.
  m_configCard.SetWindowPos(&wndBottom, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
  m_preferencesCard.SetWindowPos(&wndBottom, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -129,7 +143,90 @@ BEGIN_MESSAGE_MAP(CPage5, CModernDialog)
  ON_NOTIFY(NM_CLICK, 0x2524, &CPage5::OnUpdateLink)
  ON_NOTIFY(NM_RETURN, 0x2524, &CPage5::OnUpdateLink)
 	ON_CBN_SELCHANGE(IDC_COMBO_LANGUAGE, &CPage5::OnLanguageChanged)
+	ON_CBN_SELCHANGE(0x2540, &CPage5::OnDefaultProfileChanged)
+	ON_CBN_DROPDOWN(0x2540, &CPage5::OnDefaultProfileDropdown)
+	ON_BN_CLICKED(0x2541, &CPage5::OnAutoStartToggled)
+	ON_BN_CLICKED(0x2542, &CPage5::OnSilentStartToggled)
+	ON_BN_CLICKED(0x2543, &CPage5::OnCloseToTrayToggled)
 END_MESSAGE_MAP()
+
+void CPage5::RefreshStartupPreferences()
+{
+	if (!GetSafeHwnd() || !m_defaultProfileCombo.GetSafeHwnd())
+		return;
+
+	m_defaultProfileCombo.ResetContent();
+	m_defaultProfileCombo.AddString(Localization::Get(L"settings.default_profile_none"));
+
+	std::vector<CString> profiles;
+	if (g_MainTab && g_MainTab->GetPage1())
+		g_MainTab->GetPage1()->GetSavedProfileNames(profiles);
+
+	const CString defaultProfile = StartupSettings::GetDefaultProfile();
+	int selectedIndex = 0;
+	for (size_t i = 0; i < profiles.size(); ++i)
+	{
+		const int idx = m_defaultProfileCombo.AddString(profiles[i]);
+		if (!defaultProfile.IsEmpty() && defaultProfile.CompareNoCase(profiles[i]) == 0 && idx >= 0)
+			selectedIndex = idx;
+	}
+	m_defaultProfileCombo.SetCurSel(selectedIndex);
+
+	if (m_autoStartToggle.GetSafeHwnd())
+	{
+		m_autoStartToggle.SetCheck(StartupSettings::IsAutoStartEnabled() ? BST_CHECKED : BST_UNCHECKED);
+		m_autoStartToggle.Invalidate(FALSE);
+	}
+	if (m_silentStartToggle.GetSafeHwnd())
+	{
+		m_silentStartToggle.SetCheck(StartupSettings::IsSilentStartEnabled() ? BST_CHECKED : BST_UNCHECKED);
+		m_silentStartToggle.Invalidate(FALSE);
+	}
+	if (m_closeToTrayToggle.GetSafeHwnd())
+	{
+		m_closeToTrayToggle.SetCheck(StartupSettings::IsCloseToTrayEnabled() ? BST_CHECKED : BST_UNCHECKED);
+		m_closeToTrayToggle.Invalidate(FALSE);
+	}
+}
+
+void CPage5::OnDefaultProfileDropdown()
+{
+	RefreshStartupPreferences();
+}
+
+void CPage5::OnDefaultProfileChanged()
+{
+	const int selection = m_defaultProfileCombo.GetCurSel();
+	if (selection <= 0)
+	{
+		StartupSettings::SetDefaultProfile(L"");
+		return;
+	}
+	CString profileName;
+	m_defaultProfileCombo.GetLBText(selection, profileName);
+	StartupSettings::SetDefaultProfile(profileName);
+}
+
+void CPage5::OnAutoStartToggled()
+{
+	const bool enabled = m_autoStartToggle.GetCheck() == BST_CHECKED;
+	if (!StartupSettings::SetAutoStartEnabled(enabled))
+		m_autoStartToggle.SetCheck(StartupSettings::IsAutoStartEnabled() ? BST_CHECKED : BST_UNCHECKED);
+}
+
+void CPage5::OnSilentStartToggled()
+{
+	const bool enabled = m_silentStartToggle.GetCheck() == BST_CHECKED;
+	if (!StartupSettings::SetSilentStartEnabled(enabled))
+		m_silentStartToggle.SetCheck(StartupSettings::IsSilentStartEnabled() ? BST_CHECKED : BST_UNCHECKED);
+}
+
+void CPage5::OnCloseToTrayToggled()
+{
+	const bool enabled = m_closeToTrayToggle.GetCheck() == BST_CHECKED;
+	if (!StartupSettings::SetCloseToTrayEnabled(enabled))
+		m_closeToTrayToggle.SetCheck(StartupSettings::IsCloseToTrayEnabled() ? BST_CHECKED : BST_UNCHECKED);
+}
 
 void CPage5::OnLanguageChanged()
 {
@@ -281,7 +378,18 @@ void CPage5::LayoutAboutPage()
  place(IDC_STATIC_LANGUAGE_LABEL, x + pad, y + S(12), inner - S(190), S(20));
  place(IDC_COMBO_LANGUAGE, right - S(172), y + S(7), S(172), S(200));
  m_languageCombo.SetItemHeight(-1, S(24));
- y += S(52); place(0x2531, x, cardTop, width, y - cardTop);
+ y += S(40);
+ place(0x253F, x + pad, y + S(12), inner - S(190), S(20));
+ place(0x2540, right - S(172), y + S(7), S(172), S(200));
+ m_defaultProfileCombo.SetItemHeight(-1, S(24));
+ y += S(44);
+ place(0x2541, x + pad, y, inner, S(28));
+ y += S(32);
+ place(0x2542, x + pad, y, inner, S(28));
+ y += S(32);
+ place(0x2543, x + pad, y, inner, S(28));
+ y += S(36);
+ place(0x2531, x, cardTop, width, y - cardTop);
  y += S(10); cardTop = y;
  const int checkW = buttonWidth(4), textX = x + pad + S(50);
  place(IDC_ABOUT_ICON, x + pad, y + S(12), S(40), S(40));

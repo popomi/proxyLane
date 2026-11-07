@@ -10,12 +10,18 @@ class CPage5 : public CModernDialog
 public:
 	CPage5(CWnd* parent = NULL);
 	virtual ~CPage5();
+	void RefreshStartupPreferences();
 
 	enum { IDD = IDD_Page5 };
 
 protected:
 	CToolTipCtrl m_projectTooltip;
 	CSoftCombo m_languageCombo;
+	CStatic m_defaultProfileLabel;
+	CSoftCombo m_defaultProfileCombo;
+	CToggleButton m_autoStartToggle;
+	CToggleButton m_silentStartToggle;
+	CToggleButton m_closeToTrayToggle;
 	CCardFrame m_openSourceCard;
 	HICON m_aboutIcon;
 	void LayoutAboutPage();
@@ -46,6 +52,11 @@ protected:
 	afx_msg void OnProjectLink(NMHDR* notifyHeader, LRESULT* result);
  afx_msg void OnDownloadLink(NMHDR* notifyHeader, LRESULT* result);
 	afx_msg void OnLanguageChanged();
+	afx_msg void OnDefaultProfileChanged();
+	afx_msg void OnDefaultProfileDropdown();
+	afx_msg void OnAutoStartToggled();
+	afx_msg void OnSilentStartToggled();
+	afx_msg void OnCloseToTrayToggled();
 
 	DECLARE_MESSAGE_MAP()
 };

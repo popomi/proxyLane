@@ -20,12 +20,18 @@ struct AutomationOptions
 	AutomationOptions()
 		: enabled(FALSE)
 		, showHelp(FALSE)
+		, silentStartup(FALSE)
+		, registerStartup(FALSE)
+		, unregisterStartup(FALSE)
 		, elevated(FALSE), packaged(FALSE), shortcut(FALSE)
 	{
 	}
 
 	BOOL enabled;
 	BOOL showHelp;
+	BOOL silentStartup;
+	BOOL registerStartup;
+	BOOL unregisterStartup;
 	CString profileName;
 	CString targetPath;
 	CString applicationName;

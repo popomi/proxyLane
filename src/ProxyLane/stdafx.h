@@ -1,4 +1,4 @@
-﻿// stdafx.h : 标准系统包含文件的包含文件，
+// stdafx.h : 标准系统包含文件的包含文件，
 // 或是经常使用但不常更改的
 // 特定于项目的包含文件
 
@@ -14,6 +14,16 @@
 
 // 如果您必须使用下列所指定的平台之前的平台，则修改下面的定义。
 // 有关不同平台的相应值的最新信息，请参考 MSDN。
+#if defined(_MSC_VER) && _MSC_VER >= 1920 && !defined(_USING_V110_SDK71_)
+#ifndef WINVER
+#define WINVER 0x0601
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+#endif
+#pragma warning(disable:4996)
+
 #ifndef WINVER				// 允许使用特定于 Windows XP 或更高版本的功能。
 #define WINVER 0x0501		// 将此值更改为相应的值，以适用于 Windows 的其他版本。
 #endif

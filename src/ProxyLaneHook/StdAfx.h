@@ -1,4 +1,4 @@
-﻿// stdafx.h : include file for standard system include files,
+// stdafx.h : include file for standard system include files,
 //  or project specific include files that are used frequently, but
 //      are changed infrequently
 //
@@ -21,6 +21,16 @@
 
 // 如果您必须使用下列所指定的平台之前的平台，则修改下面的定义。
 // 有关不同平台的相应值的最新信息，请参考 MSDN。
+#if defined(_MSC_VER) && _MSC_VER >= 1920 && !defined(_USING_V110_SDK71_)
+#ifndef WINVER
+#define WINVER 0x0601
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+#endif
+#pragma warning(disable:4996)
+
 #ifndef WINVER				// 允许使用特定于 Windows XP 或更高版本的功能。
 #define WINVER 0x0501		// 将此值更改为相应的值，以适用于 Windows 的其他版本。
 #endif

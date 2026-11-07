@@ -297,6 +297,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$(SolutionDir)..\scripts\bu
     <ClInclude Include="BoundedLogQueue.h" />
     <ClInclude Include="IniFile.h" />
     <ClInclude Include="ConfigStorage.h" />
+    <ClInclude Include="StartupSettings.h" />
     <ClInclude Include="Localization.h" />
     <ClInclude Include="ListCtrlEx.h" />
     <ClInclude Include="ProcessListAccessibility.h" />

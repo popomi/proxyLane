@@ -12,6 +12,7 @@
 #include "IniFile.h"
 #include "Base64.h"
 #include "Localization.h"
+#include "StartupSettings.h"
 #include "..\ProxyLaneHook\DnsRedirectPolicy.h"
 #include "..\ProxyLaneHook\ProxyTransportPolicy.h"
 #include <vector>
@@ -151,6 +152,7 @@ void CPage1::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CPage1, CModernDialog)
  ON_COMMAND(0x2401, &CPage1::OnNewProfile)
  ON_BN_CLICKED(0x2402, &CPage1::OnToggleAdvanced)
+ ON_COMMAND(0x2403, &CPage1::OnToggleDefaultProfile)
 
 	ON_WM_SIZE()
 	ON_WM_VSCROLL()
@@ -1788,11 +1790,35 @@ void CPage1::OnCfgoptSave()
 	if (!SaveCurrentProfile(m_draftProfileName))
 		return;
 
+	if (g_MainTab && g_MainTab->GetPage5()->GetSafeHwnd())
+		g_MainTab->GetPage5()->RefreshStartupPreferences();
+
 	if (m_proxyController.IsRunning() && ApplyRuntimeSettings())
 	{
 		MessageBox(Localization::Get(_T("apply.saved_success")),
 			Localization::Get(_T("apply.saved_success_title")), MB_ICONINFORMATION);
 	}
+}
+
+void CPage1::OnToggleDefaultProfile()
+{
+	CString current = GetCurrentProfileName();
+	if (current.IsEmpty())
+		return;
+
+	if (StartupSettings::GetDefaultProfile().CompareNoCase(current) == 0)
+	{
+		StartupSettings::SetDefaultProfile(L"");
+		ShowProfileNotice(Localization::Get(L"profile.default_cleared"), NULL, CStatusLabel::TONE_INFO);
+	}
+	else
+	{
+		StartupSettings::SetDefaultProfile(current);
+		ShowProfileNotice(Localization::Format(L"profile.default_set", (LPCTSTR)current), NULL, CStatusLabel::TONE_SUCCESS);
+	}
+
+	if (g_MainTab && g_MainTab->GetPage5()->GetSafeHwnd())
+		g_MainTab->GetPage5()->RefreshStartupPreferences();
 }
 
 void CPage1::OnCfgoptDelete()
@@ -1816,6 +1842,10 @@ void CPage1::OnCfgoptDelete()
 				MessageBox(Localization::Get(L"recent.write_failed"), Localization::Get(L"profile.delete_title"), MB_OK | MB_ICONWARNING);
 				return;
 			}
+			if (StartupSettings::GetDefaultProfile().CompareNoCase(strName) == 0)
+				StartupSettings::SetDefaultProfile(L"");
+			if (g_MainTab && g_MainTab->GetPage5()->GetSafeHwnd())
+				g_MainTab->GetPage5()->RefreshStartupPreferences();
 			m_cfgls.DeleteString(idx);
 			m_loadingProfile = TRUE;
 			m_cfgls.SetCurSel(-1);

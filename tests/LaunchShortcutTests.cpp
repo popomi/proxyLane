@@ -48,6 +48,13 @@ static void TestArguments()
     Check(!ParseAutomationOptions(L"ProxyLane.exe --auto --profile A --run app.exe --elevated --elevated", parsed, error), "reject duplicate flags");
     Check(!ParseAutomationOptions(L"ProxyLane.exe --auto --profile A --run app.exe --working-directory", parsed, error), "reject missing directory");
     Check(ParseAutomationOptions(L"ProxyLane.exe --auto --profile A --run app.exe -- --help", parsed, error) && !parsed.showHelp, "application help is not ProxyLane help");
+    Check(ParseAutomationOptions(L"ProxyLane.exe --startup --silent --profile MyDefault", parsed, error) &&
+        !parsed.enabled && parsed.silentStartup && parsed.profileName == L"MyDefault", "parse silent startup and default profile");
+    Check(ParseAutomationOptions(L"ProxyLane.exe --register-startup --profile BootProfile", parsed, error) &&
+        !parsed.enabled && parsed.registerStartup && parsed.profileName == L"BootProfile", "parse register-startup");
+    Check(ParseAutomationOptions(L"ProxyLane.exe --unregister-startup", parsed, error) &&
+        !parsed.enabled && parsed.unregisterStartup, "parse unregister-startup");
+    Check(!ParseAutomationOptions(L"ProxyLane.exe --unknown-flag", parsed, error), "reject unknown flag without --auto");
 
     std::vector<BYTE> bytes;
     Check(SerializeCommand(original, bytes) && ParseCommand(bytes.data(), static_cast<DWORD>(bytes.size()), parsed), "v3 wire codec with notification metadata"); Equal(original, parsed);

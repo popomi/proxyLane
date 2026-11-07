@@ -6,6 +6,7 @@
 #include "Page4.h"
 #include "Localization.h"
 #include "ProfileShareCodec.h"
+#include "StartupSettings.h"
 #include "../ProxyLaneHook/DnsRedirectPolicy.h"
 #include "../ProxyLaneHook/PlatformSupport.h"
 
@@ -117,6 +118,12 @@ void CPage1::OnProfileMenu()
     CMenu menu;
     if (!menu.CreatePopupMenu()) return;
     menu.AppendMenu(MF_STRING | (m_bIsTesting ? MF_GRAYED : 0), 0x2401, Localization::Get(L"profile.new"));
+    const CString currentProfile = GetCurrentProfileName();
+    const CString defaultProfile = StartupSettings::GetDefaultProfile();
+    UINT defaultFlags = MF_STRING | (m_cfgls.GetCurSel() == CB_ERR || currentProfile.IsEmpty() ? MF_GRAYED : 0);
+    if (!currentProfile.IsEmpty() && !defaultProfile.IsEmpty() && currentProfile.CompareNoCase(defaultProfile) == 0)
+        defaultFlags |= MF_CHECKED;
+    menu.AppendMenu(defaultFlags, 0x2403, Localization::Get(L"profile.set_default"));
     menu.AppendMenu(MF_SEPARATOR);
     menu.AppendMenu(MF_STRING, IDC_BUTTON_COPY_PROFILE, Localization::Get(_T("share.copy")));
     menu.AppendMenu(MF_STRING | (m_bIsTesting ? MF_GRAYED : 0), IDC_BUTTON_PASTE_PROFILE,

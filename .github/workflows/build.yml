@@ -1,0 +1,100 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check locale catalogs
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-locales.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install Rust toolchain 1.88.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.88.0-x86_64-pc-windows-msvc --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup target add x86_64-pc-windows-msvc --toolchain 1.88.0-x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default 1.88.0-x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build ProxyLaneHook and ProxyLane (Win32 and x64 Release)
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\amd64\MSBuild.exe | Select-Object -First 1
+          if (-not $msbuild) { throw "MSBuild.exe not found via vswhere" }
+          Write-Host "Using MSBuild: $msbuild"
+
+          & $msbuild .\src\ProxyLaneHook\ProxyLaneHook.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $msbuild .\src\ProxyLaneHook\ProxyLaneHook.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $msbuild .\src\ProxyLane\ProxyLane.vcxproj /m /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & $msbuild .\src\ProxyLane\ProxyLane.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and run unit tests (Win32 and x64 Release)
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\amd64\MSBuild.exe | Select-Object -First 1
+          foreach ($platform in @('Win32', 'x64')) {
+              & $msbuild .\tests\ProxyLaneTests.vcxproj /m /p:Configuration=Release /p:Platform=$platform /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /v:minimal
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              & ".\tests\bin\$platform\Release\ProxyLaneTests.exe"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Package release archive
+        id: package
+        shell: pwsh
+        run: |
+          $pkg = & .\scripts\package-release.ps1
+          $pkg | Format-List
+          "version=$($pkg.Version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag_name=v$($pkg.Version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$($pkg.SHA256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProxyLane-Windows-${{ steps.package.outputs.version }}
+          path: |
+            dist/*.zip
+            bin/*
+          if-no-files-found: error
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag_name }}
+          name: ProxyLane ${{ steps.package.outputs.tag_name }}
+          body: |
+            Automated build of ProxyLane ${{ steps.package.outputs.tag_name }} from commit `${{ github.sha }}`.
+
+            **SHA-256 (`ProxyLane-${{ steps.package.outputs.version }}-Windows.zip`):**
+            `${{ steps.package.outputs.sha256 }}`
+          files: |
+            dist/*.zip
+          draft: false
+          prerelease: false

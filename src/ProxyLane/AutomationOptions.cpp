@@ -147,6 +147,18 @@ BOOL ParseAutomationOptions(
 			}
 			seenBootstrapEvent = TRUE;
 		}
+		else if (argument == L"--silent" || argument == L"--tray" || argument == L"--startup")
+		{
+			options.silentStartup = TRUE;
+		}
+		else if (argument == L"--register-startup")
+		{
+			options.registerStartup = TRUE;
+		}
+		else if (argument == L"--unregister-startup")
+		{
+			options.unregisterStartup = TRUE;
+		}
 		else if (options.enabled)
 		{
 			errorMessage.Format(_T("Unknown option: %s"), (LPCTSTR)argument);
@@ -161,14 +173,14 @@ BOOL ParseAutomationOptions(
 
 	LocalFree(argv);
 
-	if (!options.enabled)
-		return TRUE;
-
 	if (!unknownOption.IsEmpty())
 	{
 		errorMessage.Format(_T("Unknown option: %s"), (LPCTSTR)unknownOption);
 		return FALSE;
 	}
+
+	if (!options.enabled)
+		return TRUE;
 
 	if (!seenProfile || !seenRun)
 	{

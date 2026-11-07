@@ -385,7 +385,7 @@
   "dialog.drop_launch_failed": "无法启动拖入的程序，请检查文件状态和运行权限。",
   "dialog.drop_failed_title": "无法启动并代理",
   "automation.command_line_help_title": "ProxyLane 命令行帮助",
-  "automation.command_line_help": "用法\r\n\r\n启动并透明代理一个程序：\r\nProxyLane.exe --auto --profile <配置名称> --run <程序路径> [-- <程序参数...>]\r\n\r\n显示此帮助：\r\nProxyLane.exe /?\r\n\r\n参数\r\n--auto       使用命令行自动启动模式。\r\n--profile    指定已保存的配置名称。\r\n--run        指定要启动并代理的程序。\r\n--           后面的内容作为目标程序参数。\r\n/?, -?, --help    显示此帮助。\r\n\r\n示例\r\nProxyLane.exe --auto --profile \"Test\" --run \"C:\\Tools\\app.exe\" -- -arg value\r\n\r\n如果同一安装目录、用户会话和配置已有运行实例，命令会复用该实例。\r\n\r\n快捷方式参数\r\n--arguments    保留应用的完整参数字符串。\r\n--working-directory    应用的工作目录。\r\n--elevated    以管理员身份启动应用。\r\n--packaged    将 --run 解释为商店应用的 AUMID。\r\n--shortcut    快捷方式模式：后台运行并提示启动结果。\r\n--app-name    通知中显示的应用名称。",
+  "automation.command_line_help": "用法\r\n\r\n启动并透明代理一个程序：\r\nProxyLane.exe --auto --profile <配置名称> --run <程序路径> [-- <程序参数...>]\r\n\r\n后台静默启动（最小化到系统托盘）：\r\nProxyLane.exe --silent [--profile <默认启用配置名称>]\r\n\r\n注册 / 取消开机静默自启动：\r\nProxyLane.exe --register-startup [--profile <默认启用配置名称>]\r\nProxyLane.exe --unregister-startup\r\n\r\n显示此帮助：\r\nProxyLane.exe /?\r\n\r\n参数\r\n--auto       使用命令行自动启动模式。\r\n--profile    指定已保存的配置名称。\r\n--run        指定要启动并代理的程序。\r\n--silent, --tray, --startup    静默驻留后台托盘启动。\r\n--register-startup      注册开机自动静默启动。\r\n--unregister-startup    取消开机自动启动。\r\n--           后面的内容作为目标程序参数。\r\n/?, -?, --help    显示此帮助。\r\n\r\n示例\r\nProxyLane.exe --auto --profile \"Test\" --run \"C:\\Tools\\app.exe\" -- -arg value\r\n\r\n如果同一安装目录、用户会话和配置已有运行实例，命令会复用该实例。\r\n\r\n快捷方式参数\r\n--arguments    保留应用的完整参数字符串。\r\n--working-directory    应用的工作目录。\r\n--elevated    以管理员身份启动应用。\r\n--packaged    将 --run 解释为商店应用的 AUMID。\r\n--shortcut    快捷方式模式：后台运行并提示启动结果。\r\n--app-name    通知中显示的应用名称。",
   "mitm.ca": "解密选项",
   "mitm.legacy_unavailable": "Windows XP / Server 2003 不支持 MITM 和协议还原监视，代理功能仍可使用。",
   "mitm.enable": "解密 HTTPS",
@@ -590,5 +590,17 @@
   "shortcut.profile_conflict": "快捷方式使用配置“%s”，当前运行的是“%s”。\r\n\r\n是：使用快捷方式的配置启动。\r\n否：使用当前配置启动。\r\n取消：不启动。",
   "shortcut.started_notification": "已启动 %s\r\n使用配置：%s",
   "shortcut.started_log": "快捷方式已启动应用：%s；配置：%s。\r\n",
-  "shortcut.notification_failed": "应用已启动，但未能发送系统托盘通知。\r\n"
+  "shortcut.notification_failed": "应用已启动，但未能发送系统托盘通知。\r\n",
+  "settings.default_profile": "默认启动配置（可选）",
+  "settings.default_profile_none": "不自动启用（无）",
+  "settings.auto_start": "开机自动启动",
+  "settings.silent_start": "启动时静默驻留后台（隐藏到右下角托盘）",
+  "settings.close_to_tray": "关闭窗口时隐藏到右下角托盘（可随时唤醒）",
+  "tray.hide": "隐藏到系统托盘",
+  "tray.default_profile": "默认启动配置（可选）",
+  "tray.default_suffix": "（默认）",
+  "tray.switch_profile": "切换配置",
+  "profile.set_default": "设为默认启动配置",
+  "profile.default_set": "已设为默认启动配置：%s",
+  "profile.default_cleared": "已取消默认启动配置"
 }
