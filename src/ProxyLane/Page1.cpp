@@ -286,7 +286,7 @@ BOOL CPage1::OnInitDialog()
 	ShowTab(0);
 	LayoutSettingsPage();
 	m_loadingProfile = FALSE;
-	if (m_cfgls.GetCount() > 0 && !m_bDirty)
+	if (m_cfgls.GetCount() > 0 && !m_profileDirty)
 		SetProfileDirty(FALSE);
 
 	return TRUE;
