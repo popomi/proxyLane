@@ -592,7 +592,7 @@
   "shortcut.started_log": "快捷方式已启动应用：%s；配置：%s。\r\n",
   "shortcut.notification_failed": "应用已启动，但未能发送系统托盘通知。\r\n",
   "settings.default_profile": "默认启动配置（可选）",
-  "settings.default_profile_none": "不自动启用（无）",
+  "settings.default_profile_none": "自动启用上次配置（默认）",
   "settings.auto_start": "开机自动启动",
   "settings.silent_start": "启动时静默驻留后台（隐藏到右下角托盘）",
   "settings.close_to_tray": "关闭窗口时隐藏到右下角托盘（可随时唤醒）",

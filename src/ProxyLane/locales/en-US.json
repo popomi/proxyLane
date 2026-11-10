@@ -592,7 +592,7 @@
   "shortcut.started_log": "Shortcut launched application: %s; profile: %s.\r\n",
   "shortcut.notification_failed": "The application started, but the tray notification could not be sent.\r\n",
   "settings.default_profile": "Default startup profile (optional)",
-  "settings.default_profile_none": "None (do not auto-enable)",
+  "settings.default_profile_none": "Auto-enable last profile (Default)",
   "settings.auto_start": "Launch at Windows startup",
   "settings.silent_start": "Start silently in background (system tray)",
   "settings.close_to_tray": "Hide to system tray when closing window",

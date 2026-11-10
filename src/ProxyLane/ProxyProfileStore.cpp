@@ -3,6 +3,7 @@
 #include "ProxyProfileStore.h"
 #include "RecentApplications.h"
 #include "ConfigStorage.h"
+#include "StartupSettings.h"
 
 namespace
 {
@@ -70,7 +71,9 @@ BOOL CProxyProfileStore::Load(CfgProxyItem& item) const
 	item.pi.szItemName = _T("myproxy");
 	item.pi.strProxyType = m_ini.GetString(section, _T("Type"));
 	item.pi.strProxyHost = m_ini.GetString(section, _T("Host"));
-	item.pi.nProxyPort = m_ini.GetInt(section, _T("Port"));
+	item.pi.nProxyPort = m_ini.GetInt(section, _T("Port"), 0);
+	if (item.pi.nProxyPort <= 0 && CString(item.pi.strProxyType).CompareNoCase(_T("NOPROXY")) != 0)
+		item.pi.nProxyPort = StartupSettings::GetLastPort();
 	item.pi.strProxyUser = m_ini.GetString(section, _T("User"));
 	item.pi.strProxyPass = m_ini.GetString(section, _T("Pass"));
 	CString transport = m_ini.GetString(section, _T("Transport"));
@@ -158,6 +161,10 @@ BOOL CProxyProfileStore::Save(CfgProxyItem& item)
 	// Initial secure-transport format intentionally stores the PSK directly
 	// in the profile, as selected by the user.
 	if (!ini.SetString(section, _T("PSK"), item.strTransportPsk)) return false;
+	if (item.pi.nProxyPort > 0 && item.pi.nProxyPort <= 65535)
+	{
+		if (!ini.SetInt(L"options", L"LastPort", item.pi.nProxyPort)) return false;
+	}
 	return ini.SetString(L"options", L"lastselected", item.strName) != FALSE;
 	});
 }

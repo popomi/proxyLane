@@ -251,6 +251,33 @@ BOOL CPage1::OnInitDialog()
 			OnCfgoptLoad();
 		}
 	}
+	else if (m_cfgls.GetCount() > 0)
+	{
+		m_cfgls.SetCurSel(0);
+		OnCfgoptLoad();
+	}
+	else if (m_cfgls.GetCount() == 0)
+	{
+		m_draftProfileName = _T("proxy");
+		m_cfgls.SetWindowText(m_draftProfileName);
+		CfgProxyItem defaultItem;
+		defaultItem.strName = m_draftProfileName;
+		UIGetCfg(&defaultItem);
+		if (m_profileStore.Save(defaultItem))
+		{
+			int idx = m_cfgls.AddString(defaultItem.strName);
+			m_loadingProfile = TRUE;
+			m_cfgls.SetCurSel(idx);
+			m_cfgls.SetWindowText(defaultItem.strName);
+			m_loadingProfile = FALSE;
+			m_loadedProfileName = defaultItem.strName;
+			SetProfileDirty(FALSE);
+		}
+		else
+		{
+			SetProfileDirty(TRUE);
+		}
+	}
 
 	m_bHookLanIP = g_ini.GetInt(_T("options"), _T("HookLanIP"), 1);
 	m_bDisableLLMNR = g_ini.GetInt(_T("options"), _T("DisableLLMNR"), 1);
@@ -259,15 +286,8 @@ BOOL CPage1::OnInitDialog()
 	ShowTab(0);
 	LayoutSettingsPage();
 	m_loadingProfile = FALSE;
-	SetProfileDirty(FALSE);
-
-	// First run: offer a named draft that still has to be saved once.
-	if (m_cfgls.GetCount() == 0)
-	{
-		m_draftProfileName = _T("proxy");
-		m_cfgls.SetWindowText(m_draftProfileName);
-		SetProfileDirty(TRUE);
-	}
+	if (m_cfgls.GetCount() > 0 && !m_bDirty)
+		SetProfileDirty(FALSE);
 
 	return TRUE;
 }
@@ -928,6 +948,18 @@ void CPage1::UpdateTransportEnable()
 	if (previousHint != hint) SetDlgItemText(IDC_STATIC_UPSTREAM_HINT, hint);
 	m_edit_HostName.EnableWindow(!direct);
 	m_edit_Port.EnableWindow(!direct);
+	if (!direct)
+	{
+		CString portText;
+		m_edit_Port.GetWindowText(portText);
+		portText.Trim();
+		if (portText.IsEmpty() || _ttoi(portText) == 0)
+		{
+			CString defaultPort;
+			defaultPort.Format(_T("%d"), StartupSettings::GetLastPort());
+			m_edit_Port.SetWindowText(defaultPort);
+		}
+	}
 	m_edit_User.EnableWindow(!direct);
 	m_edit_Pass.EnableWindow(!direct);
 	m_btnHookTCP.SetWindowText(Localization::Get(direct
@@ -1084,17 +1116,42 @@ BOOL CPage1::StartProxy(BOOL showErrors)
 	if (m_cfgls.FindStringExact(-1, GetCurrentProfileName()) == CB_ERR)
 	{
 		if (!showErrors)
-			return FALSE;
-		if (MessageBox(Localization::Get(_T("profile.save_before_start")),
-			Localization::Get(_T("profile.save_before_start_title")), MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
-			return FALSE;
-		CString name;
-		m_cfgls.GetWindowText(name);
-		name.Trim();
-		if (name.IsEmpty())
-			name = _T("proxy");
-		if (!SaveCurrentProfile(name))
-			return FALSE;
+		{
+			CString name;
+			m_cfgls.GetWindowText(name);
+			name.Trim();
+			if (name.IsEmpty())
+				name = _T("proxy");
+			ProxyInfo checkInfo;
+			if (!GetSettings(&checkInfo) || !ValidateDnsRedirectSettings(FALSE))
+				return FALSE;
+			CfgProxyItem draftItem;
+			draftItem.strName = name;
+			UIGetCfg(&draftItem);
+			if (!m_profileStore.Save(draftItem))
+				return FALSE;
+			int idx = m_cfgls.AddString(draftItem.strName);
+			m_loadingProfile = TRUE;
+			m_cfgls.SetCurSel(idx);
+			m_cfgls.SetWindowText(draftItem.strName);
+			m_loadingProfile = FALSE;
+			m_loadedProfileName = draftItem.strName;
+			m_draftProfileName = draftItem.strName;
+			SetProfileDirty(FALSE);
+		}
+		else
+		{
+			if (MessageBox(Localization::Get(_T("profile.save_before_start")),
+				Localization::Get(_T("profile.save_before_start_title")), MB_OKCANCEL | MB_ICONINFORMATION) != IDOK)
+				return FALSE;
+			CString name;
+			m_cfgls.GetWindowText(name);
+			name.Trim();
+			if (name.IsEmpty())
+				name = _T("proxy");
+			if (!SaveCurrentProfile(name))
+				return FALSE;
+		}
 	}
 
 	ProxyInfo proxyInfo;
@@ -1106,6 +1163,8 @@ BOOL CPage1::StartProxy(BOOL showErrors)
 				Localization::Get(_T("proxy.start_failed_title")), MB_ICONERROR);
 		return FALSE;
 	}
+	if (proxyInfo.nProxyPort > 0 && proxyInfo.nProxyPort <= 65535)
+		StartupSettings::SetLastPort(proxyInfo.nProxyPort);
 	if (!ValidateDnsRedirectSettings(showErrors))
 		return FALSE;
 
@@ -1206,6 +1265,8 @@ BOOL CPage1::ApplyRuntimeSettings()
 			Localization::Get(_T("apply.failed_title")), MB_ICONERROR);
 		return FALSE;
 	}
+	if (proxyInfo.nProxyPort > 0 && proxyInfo.nProxyPort <= 65535)
+		StartupSettings::SetLastPort(proxyInfo.nProxyPort);
 	if (!ValidateDnsRedirectSettings(TRUE))
 		return FALSE;
 
@@ -1864,8 +1925,10 @@ void CPage1::UILoadCfg( CfgProxyItem *item )
 	if (item == NULL)
 	{
 		m_cbProxyType.SelectString(0, _T("SOCKS5"));
-		m_edit_HostName.SetWindowText(_T(""));
-		m_edit_Port.SetWindowText(_T("1080"));
+		m_edit_HostName.SetWindowText(_T("127.0.0.1"));
+		CString defaultPort;
+		defaultPort.Format(_T("%d"), StartupSettings::GetLastPort());
+		m_edit_Port.SetWindowText(defaultPort);
 		m_edit_User.SetWindowText(_T(""));
 		m_edit_Pass.SetWindowText(_T(""));
 		m_cbTransport.SetCurSel(PROXY_TRANSPORT_PLAIN);
@@ -1894,9 +1957,19 @@ void CPage1::UILoadCfg( CfgProxyItem *item )
 
 		szType = item->pi.strProxyType;
 		szHost = item->pi.strProxyHost;
-		szPort.Format(_T("%d"), item->pi.nProxyPort);
-		if (szType.CompareNoCase(_T("NOPROXY")) == 0 && !item->pi.nProxyPort)
+		if (item->pi.nProxyPort > 0 && item->pi.nProxyPort <= 65535)
+		{
+			szPort.Format(_T("%d"), item->pi.nProxyPort);
+			StartupSettings::SetLastPort(item->pi.nProxyPort);
+		}
+		else if (szType.CompareNoCase(_T("NOPROXY")) == 0)
+		{
 			szPort.Empty();
+		}
+		else
+		{
+			szPort.Format(_T("%d"), StartupSettings::GetLastPort());
+		}
 		szUser = item->pi.strProxyUser;
 		szPass = item->pi.strProxyPass;
 
@@ -2188,14 +2261,19 @@ void CPage1::OnToggleAdvanced()
 }
 void CPage1::OnNewProfile()
 {
- if (m_bIsTesting || !ConfirmDiscardUnsavedChanges() || !RefreshProfileNames()) return;
- CString base = Localization::Get(L"profile.new_name"), name = base;
- for (int i = 2; m_cfgls.FindStringExact(-1, name) != CB_ERR; ++i) name.Format(L"%s %d", (LPCWSTR)base, i);
- UILoadCfg(NULL);
- m_loadingProfile = TRUE; m_cfgls.SetCurSel(-1); m_cfgls.SetWindowText(name); m_loadingProfile = FALSE;
- m_draftProfileName = name; SetProfileDirty(TRUE); SetRuntimeDirty(TRUE);
- m_scrollY = 0; LayoutSettingsPage(); m_cfgls.SetFocus(); m_cfgls.SetEditSel(0, -1);
- UpdateProxyTestStatus();
+	if (m_bIsTesting || !ConfirmDiscardUnsavedChanges() || !RefreshProfileNames()) return;
+	CString base = Localization::Get(L"profile.new_name"), name = base;
+	for (int i = 2; m_cfgls.FindStringExact(-1, name) != CB_ERR; ++i) name.Format(L"%s %d", (LPCWSTR)base, i);
+	CString currentPortText;
+	m_edit_Port.GetWindowText(currentPortText);
+	const int currentPort = _ttoi(currentPortText);
+	if (currentPort > 0 && currentPort <= 65535)
+		StartupSettings::SetLastPort(currentPort);
+	UILoadCfg(NULL);
+	m_loadingProfile = TRUE; m_cfgls.SetCurSel(-1); m_cfgls.SetWindowText(name); m_loadingProfile = FALSE;
+	m_draftProfileName = name; SetProfileDirty(TRUE); SetRuntimeDirty(TRUE);
+	m_scrollY = 0; LayoutSettingsPage(); m_cfgls.SetFocus(); m_cfgls.SetEditSel(0, -1);
+	UpdateProxyTestStatus();
 }
 
 void CPage1::UpdateAdvancedCaption()

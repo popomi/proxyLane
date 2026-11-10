@@ -722,19 +722,18 @@ BOOL CProxyLaneDlg::OnInitDialog()
 	}
 	else
 	{
-		CString startupProfile = autoOpts.profileName;
-		if (startupProfile.IsEmpty())
-			startupProfile = StartupSettings::GetDefaultProfile();
-		if (!startupProfile.IsEmpty())
+		CPage1* page1 = m_MainTab.GetPage1();
+		if (page1)
 		{
-			CPage1* page1 = m_MainTab.GetPage1();
-			if (page1 && page1->LoadProfileByName(startupProfile, TRUE))
+			CString startupProfile = autoOpts.profileName;
+			if (startupProfile.IsEmpty())
+				startupProfile = StartupSettings::GetDefaultProfile();
+			if (!startupProfile.IsEmpty())
+				page1->LoadProfileByName(startupProfile, TRUE);
+			if (page1->StartProxy(FALSE))
 			{
-				if (page1->StartProxy(FALSE))
-				{
-					RefreshProfileCommandServer();
-					UpdateTaskbarIcon();
-				}
+				RefreshProfileCommandServer();
+				UpdateTaskbarIcon();
 			}
 		}
 

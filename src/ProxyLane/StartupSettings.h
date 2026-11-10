@@ -180,6 +180,56 @@ namespace StartupSettings
 			ConfigStorage::Path()) != FALSE;
 	}
 
+	static const int kDefaultProxyPort = 7897;
+
+	inline int GetLastPort()
+	{
+		const int configured = GetPrivateProfileIntW(L"options", L"LastPort", 0, ConfigStorage::Path());
+		if (configured > 0 && configured <= 65535)
+			return configured;
+
+		WCHAR nameBuf[512] = {};
+		GetPrivateProfileStringW(
+			L"options",
+			L"lastselected",
+			L"",
+			nameBuf,
+			_countof(nameBuf),
+			ConfigStorage::Path());
+		CString name(nameBuf);
+		name.Trim();
+		if (name.IsEmpty())
+			name = GetDefaultProfile();
+
+		if (!name.IsEmpty())
+		{
+			const CString section = L"proxy_" + name;
+			const int profilePort = GetPrivateProfileIntW(
+				section,
+				L"Port",
+				0,
+				ConfigStorage::Path());
+			if (profilePort > 0 && profilePort <= 65535)
+				return profilePort;
+		}
+
+		return kDefaultProxyPort;
+	}
+
+	inline bool SetLastPort(int port)
+	{
+		if (port <= 0 || port > 65535)
+			return false;
+
+		CString portStr;
+		portStr.Format(L"%d", port);
+		return ConfigStorage::WriteValue(
+			L"options",
+			L"LastPort",
+			portStr,
+			ConfigStorage::Path()) != FALSE;
+	}
+
 	inline void SyncRegistryOnStartup()
 	{
 		if (IsAutoStartEnabled())
